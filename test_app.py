@@ -31,3 +31,14 @@ def test_listar_imoveis_retorna_dicionarios_com_chaves_esperadas(client):
 
     assert len(imoveis) > 0
     assert all(set(imovel.keys()) == chaves_esperadas for imovel in imoveis)
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_listar_imovel_por_id_retorna_todos_os_atributos(client):
+    imoveis = client.get("/imoveis").get_json()
+    imovel_esperado = imoveis[0]
+
+    response = client.get(f"/imoveis/{imovel_esperado['id']}")
+
+    assert response.status_code == 200
+    assert response.get_json() == imovel_esperado
