@@ -44,14 +44,18 @@ def test_listar_imovel_por_id_retorna_todos_os_atributos(client):
     assert response.get_json() == imovel_esperado
 
 @pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
-def test_content_type(client):
-    response = client.get("/imoveis")
-    content_type = response.headers
-
-@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
 def test_listar_imoveis_retorna_content_type_json(client):
     response = client.get("/imoveis")
     content_type = response.headers["Content-Type"]
 
     assert "application/json" in content_type 
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_buscar_imovel_por_id_retorna_content_type_json(client):
+    imoveis = client.get("/imoveis").get_json()
+    imovel_esperado = imoveis[0]
+
+    response = client.get(f"/imoveis/{imovel_esperado['id']}")
+    content_type = response.headers["Content-Type"]
     
+    assert "application/json" in content_type 
