@@ -59,3 +59,13 @@ def test_buscar_imovel_por_id_retorna_content_type_json(client):
     content_type = response.headers["Content-Type"]
     
     assert "application/json" in content_type 
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_imovel_id_nao_existe(client):
+    imoveis = client.get("/imoveis").get_json()
+    id_inexistente = max(imovel["id"] for imovel in imoveis) + 1
+
+    response = client.get(f"/imoveis/{id_inexistente}")
+
+    assert response.status_code == 404
+
