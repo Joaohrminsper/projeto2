@@ -69,3 +69,29 @@ def test_imovel_id_nao_existe(client):
 
     assert response.status_code == 404
 
+
+def test_adicionar_imovel_retorna_201_e_id(client):
+    imovel = {
+        "logradouro": "Rua do Teste da Rota POST",
+        "tipo_logradouro": "Rua",
+        "bairro": "Centro",
+        "cidade": "Sao Paulo",
+        "cep": "01000-000",
+        "tipo": "casa",
+        "valor": 250000.00,
+        "data_aquisicao": "2026-09-11",
+    }
+
+    response = client.post("/imoveis", json=imovel)
+
+    assert response.status_code == 201
+    assert response.get_json()["id"] is not None
+    assert response.get_json()["logradouro"] == imovel["logradouro"]
+
+
+def test_adicionar_imovel_retorna_400_sem_campos_obrigatorios(client):
+    response = client.post("/imoveis", json={"logradouro", "tipo_logradouro", "bairro", "cidade", "cep", "tipo", "valor", "data_aquisicao"})
+
+    assert response.status_code == 400
+    assert response.get_json()["campos"] == ["logradouro", "tipo_logradouro", "bairro", "cidade", "cep", "tipo", "valor", "data_aquisicao"]
+
