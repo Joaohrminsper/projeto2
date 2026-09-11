@@ -87,13 +87,29 @@ def test_adicionar_imovel_retorna_201_e_id(client):
     assert response.status_code == 201
     assert response.get_json()["id"] is not None
     assert response.get_json()["logradouro"] == imovel["logradouro"]
+    assert response.get_json()["tipo_logradouro"] == imovel["tipo_logradouro"]
+    assert response.get_json()["bairro"] == imovel["bairro"]
+    assert response.get_json()["cidade"] == imovel["cidade"]
+    assert response.get_json()["cep"] == imovel["cep"]
+    assert response.get_json()["tipo"] == imovel["tipo"]
+    assert response.get_json()["valor"] == imovel["valor"]
+    assert response.get_json()["data_aquisicao"] == imovel["data_aquisicao"]
 
 @pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
 def test_adicionar_imovel_retorna_400_sem_campos_obrigatorios(client):
-    response = client.post("/imoveis", json={"logradouro", "tipo_logradouro", "bairro", "cidade", "cep", "tipo", "valor", "data_aquisicao"})
+    response = client.post("/imoveis", json={})
 
     assert response.status_code == 400
-    assert response.get_json()["campos"] == ["logradouro", "tipo_logradouro", "bairro", "cidade", "cep", "tipo", "valor", "data_aquisicao"]
+    assert response.get_json()["campos"] == [
+        "bairro",
+        "cep",
+        "cidade",
+        "data_aquisicao",
+        "logradouro",
+        "tipo",
+        "tipo_logradouro",
+        "valor",
+    ]
 
 @pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
 def test_atualizar_dados_com_sucesso(client):
