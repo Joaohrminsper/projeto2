@@ -85,5 +85,116 @@ def adicionar_imovel():
 
     return jsonify({**req_data, "id": imovel_id}), 201
 
+@app.route("/imoveis/<int:id>", methods=["PATCH"])
+def atualizar_imovel(id):
+    dados = request.get_json(silent=True)
+
+    if not isinstance(dados, dict) or not dados:
+        return jsonify({
+            "erro": "O corpo deve conter um JSON válido"
+        }), 400
+
+    campos_permitidos = {
+        "logradouro",
+        "tipo_logradouro",
+        "bairro",
+        "cidade",
+        "cep",
+        "tipo",
+        "valor",
+        "data_aquisicao",
+    }
+
+    campos_invalidos = set(dados) - campos_permitidos
+
+    if campos_invalidos:
+        return jsonify({
+            "erro": "Campos inválidos",
+            "campos": sorted(campos_invalidos),
+        }), 400
+
+    campos_texto = {
+        "logradouro",
+        "tipo_logradouro",
+        "bairro",
+        "cidade",
+        "cep",
+        "tipo",
+        "data_aquisicao",
+    }
+
+    for campo in campos_texto:
+        if campo in dados:
+            if (
+                not isinstance(dados[campo], str)
+                or not dados[campo].strip()
+            ):
+                return jsonify({
+                    "erro": f"O campo '{campo}' deve ser uma string válida"
+                }), 400
+
+    if "valor" in dados:
+        valor = dados["valor"]
+
+        if (
+            not isinstance(valor, (int, float))
+            or isinstance(valor, bool)
+            or valor < 0
+        ):
+            return jsonify({
+                "erro": "O campo 'valor' deve ser um número não negativo"
+            }), 400
+
+    conexao = conectar()
+    cursor = conexao.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM imoveis WHERE id = %s",
+        (id,),
+    )
+
+    imovel = cursor.fetchone()
+
+    if imovel is None:
+        cursor.close()
+        conexao.close()
+
+        return jsonify({
+            "erro": "Imóvel não encontrado"
+        }), 404
+
+    campos_para_atualizar = list(dados.keys())
+
+    clausula_set = ", ".join(
+        f"{campo} = %s"
+        for campo in campos_para_atualizar
+    )
+
+
+    valores = [
+        dados[campo]
+        for campo in campos_para_atualizar
+    ]
+
+    cursor.execute(
+        f"UPDATE imoveis SET {clausula_set} WHERE id = %s",
+        (*valores, id),
+    )
+
+    conexao.commit()
+
+    cursor.execute(
+        "SELECT * FROM imoveis WHERE id = %s",
+        (id,),
+    )
+
+    imovel_atualizado = cursor.fetchone()
+
+    cursor.close()
+    conexao.close()
+
+    return jsonify(imovel_atualizado), 200
+
+
 if __name__ == "__main__":
     app.run(debug=True)
