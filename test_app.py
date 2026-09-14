@@ -151,7 +151,7 @@ def test_atualizar_preserva_campos_nao_enviados(client):
     assert response.status_code == 200
     assert imovel_depois["bairro"] == "Novo bairro"
 
-    assert imovel_depois["preco"] == imovel_antes["preco"]
+    assert imovel_depois["valor"] == imovel_antes["valor"]
 
 @pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"]) 
 def test_atualizar_imovel_inexistente_retorna_404(client):
@@ -172,3 +172,32 @@ def test_atualizar_imovel_com_dados_invalidos_retorna_400(client):
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_remover_imovel_com_sucesso(client):
+    novo_imovel = {
+        "logradouro": "Rua do Teste da Rota DELETE",
+        "tipo_logradouro": "Rua",
+        "bairro": "Centro",
+        "cidade": "Sao Paulo",
+        "cep": "01000-000",
+        "tipo": "casa",
+        "valor": 250000.00,
+        "data_aquisicao": "2026-09-14",
+    }
+    imovel_id = client.post("/imoveis", json=novo_imovel).get_json()["id"]
+
+    response = client.delete(f"/imoveis/{imovel_id}")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"mensagem": "Imóvel removido com sucesso"}
+    assert client.get(f"/imoveis/{imovel_id}").status_code == 404
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_remover_imovel_inexistente_retorna_404(client):
+    response = client.delete("/imoveis/999999")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"erro": "Imóvel não encontrado"}

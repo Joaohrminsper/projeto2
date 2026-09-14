@@ -1,21 +1,87 @@
 from flask import *
 import mysql.connector
+import os
+import re
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
+load_dotenv()
 
-def conectar():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="241207",
-        database="imobiliaria"
+
+CONFIGURACAO_SERVIDOR = {
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+}
+NOME_BANCO = os.getenv("DB_NAME")
+
+
+def inicializar_banco_de_dados():
+    variaveis_obrigatorias = {
+        "DB_HOST": CONFIGURACAO_SERVIDOR["host"],
+        "DB_USER": CONFIGURACAO_SERVIDOR["user"],
+        "DB_PASSWORD": CONFIGURACAO_SERVIDOR["password"],
+        "DB_NAME": NOME_BANCO,
+    }
+    variaveis_ausentes = [
+        nome
+        for nome, valor in variaveis_obrigatorias.items()
+        if valor is None
+    ]
+
+    if variaveis_ausentes:
+        raise RuntimeError(
+            "Variáveis ausentes no .env: "
+            + ", ".join(variaveis_ausentes)
+        )
+
+    if not re.fullmatch(r"[A-Za-z0-9_]+", NOME_BANCO):
+        raise RuntimeError("DB_NAME deve conter apenas letras, números e _")
+
+    conexao_servidor = mysql.connector.connect(**CONFIGURACAO_SERVIDOR)
+    cursor_servidor = conexao_servidor.cursor()
+    cursor_servidor.execute(
+        f"CREATE DATABASE IF NOT EXISTS `{NOME_BANCO}` "
+        "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
     )
+    cursor_servidor.close()
+    conexao_servidor.close()
+
+    conexao_banco = mysql.connector.connect(
+        **CONFIGURACAO_SERVIDOR,
+        database=NOME_BANCO,
+    )
+    cursor_banco = conexao_banco.cursor()
+    cursor_banco.execute("""
+        CREATE TABLE IF NOT EXISTS imoveis (
+            id INTEGER PRIMARY KEY AUTO_INCREMENT,
+            logradouro TEXT NOT NULL,
+            tipo_logradouro TEXT,
+            bairro TEXT,
+            cidade TEXT NOT NULL,
+            cep TEXT,
+            tipo TEXT,
+            valor REAL,
+            data_aquisicao TEXT
+        )
+    """)
+    cursor_banco.close()
+    conexao_banco.close()
+
+
+inicializar_banco_de_dados()
+
+
+CONFIGURACAO_BANCO = {
+    **CONFIGURACAO_SERVIDOR,
+    "database": NOME_BANCO,
+}
 
 
 @app.route("/imoveis", methods=["GET"])
 def listar_imoveis():
-    conexao = conectar()
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
     cursor = conexao.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM imoveis")
@@ -29,7 +95,7 @@ def listar_imoveis():
 
 @app.route("/imoveis/<int:id>", methods=["GET"])
 def listar_imovel_por_id(id):
-    conexao = conectar()
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
     cursor = conexao.cursor(dictionary=True)
 
     cursor.execute("SELECT * FROM imoveis WHERE id = %s", (id,))
@@ -59,7 +125,7 @@ def adicionar_imovel():
             "campos": sorted(campos_faltantes),
         }), 400
 
-    conexao = conectar()
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
     cursor = conexao.cursor()
     campos = (
         "logradouro",
@@ -145,7 +211,7 @@ def atualizar_imovel(id):
                 "erro": "O campo 'valor' deve ser um número não negativo"
             }), 400
 
-    conexao = conectar()
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
     cursor = conexao.cursor(dictionary=True)
 
     cursor.execute(
@@ -194,6 +260,34 @@ def atualizar_imovel(id):
     conexao.close()
 
     return jsonify(imovel_atualizado), 200
+
+
+@app.route("/imoveis/<int:id>", methods=["DELETE"])
+def remover_imovel(id):
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
+    cursor = conexao.cursor()
+
+    cursor.execute(
+        "DELETE FROM imoveis WHERE id = %s",
+        (id,),
+    )
+
+    imovel_encontrado = cursor.rowcount > 0
+
+    if imovel_encontrado:
+        conexao.commit()
+
+    cursor.close()
+    conexao.close()
+
+    if not imovel_encontrado:
+        return jsonify({
+            "erro": "Imóvel não encontrado"
+        }), 404
+
+    return jsonify({
+        "mensagem": "Imóvel removido com sucesso"
+    }), 200
 
 
 if __name__ == "__main__":
