@@ -1,4 +1,5 @@
 import pytest
+from urllib.parse import quote
 
 
 @pytest.mark.dependency()
@@ -201,3 +202,53 @@ def test_remover_imovel_inexistente_retorna_404(client):
 
     assert response.status_code == 404
     assert response.get_json() == {"erro": "Imóvel não encontrado"}
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_buscar_imoveis_por_tipo_retorna_todos_os_atributos(client):
+    imoveis = client.get("/imoveis").get_json()
+    tipo = imoveis[0]["tipo"]
+    imoveis_esperados = [
+        imovel
+        for imovel in imoveis
+        if imovel["tipo"] == tipo
+    ]
+    chaves_esperadas = {
+        "bairro",
+        "cep",
+        "cidade",
+        "data_aquisicao",
+        "id",
+        "logradouro",
+        "tipo",
+        "tipo_logradouro",
+        "valor",
+    }
+
+    response = client.get(f"/imoveis/tipo/{quote(tipo, safe='')}")
+    imoveis_encontrados = response.get_json()
+
+    assert response.status_code == 200
+    assert imoveis_encontrados == imoveis_esperados
+    assert all(
+        set(imovel.keys()) == chaves_esperadas
+        for imovel in imoveis_encontrados
+    )
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_buscar_tipo_inexistente_retorna_tipos_disponiveis(client):
+    imoveis = client.get("/imoveis").get_json()
+    tipos_disponiveis = sorted({
+        imovel["tipo"]
+        for imovel in imoveis
+        if imovel["tipo"]
+    })
+
+    response = client.get("/imoveis/tipo/tipo-inexistente")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "erro": "Nenhum imóvel encontrado para o tipo informado",
+        "tipos_disponiveis": tipos_disponiveis,
+    }

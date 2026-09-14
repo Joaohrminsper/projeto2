@@ -93,6 +93,42 @@ def listar_imoveis():
     return jsonify(imoveis)
 
 
+@app.route("/imoveis/tipo/<string:tipo>", methods=["GET"])
+def buscar_imoveis_por_tipo(tipo):
+    conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
+    cursor = conexao.cursor(dictionary=True)
+
+    cursor.execute(
+        "SELECT * FROM imoveis WHERE LOWER(tipo) = LOWER(%s)",
+        (tipo,),
+    )
+    imoveis = cursor.fetchall()
+
+    if not imoveis:
+        cursor.execute("""
+            SELECT DISTINCT tipo
+            FROM imoveis
+            WHERE tipo IS NOT NULL AND TRIM(tipo) != ''
+        """)
+        tipos_disponiveis = sorted(
+            resultado["tipo"]
+            for resultado in cursor.fetchall()
+        )
+
+        cursor.close()
+        conexao.close()
+
+        return jsonify({
+            "erro": "Nenhum imóvel encontrado para o tipo informado",
+            "tipos_disponiveis": tipos_disponiveis,
+        }), 404
+
+    cursor.close()
+    conexao.close()
+
+    return jsonify(imoveis), 200
+
+
 @app.route("/imoveis/<int:id>", methods=["GET"])
 def listar_imovel_por_id(id):
     conexao = mysql.connector.connect(**CONFIGURACAO_BANCO)
