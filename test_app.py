@@ -252,3 +252,53 @@ def test_buscar_tipo_inexistente_retorna_tipos_disponiveis(client):
         "erro": "Nenhum imóvel encontrado para o tipo informado",
         "tipos_disponiveis": tipos_disponiveis,
     }
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_buscar_imoveis_por_cidade_retorna_todos_os_atributos(client):
+    imoveis = client.get("/imoveis").get_json()
+    cidade = imoveis[0]["cidade"]
+    imoveis_esperados = [
+        imovel
+        for imovel in imoveis
+        if imovel["cidade"] == cidade
+    ]
+    chaves_esperadas = {
+        "bairro",
+        "cep",
+        "cidade",
+        "data_aquisicao",
+        "id",
+        "logradouro",
+        "tipo",
+        "tipo_logradouro",
+        "valor",
+    }
+
+    response = client.get(f"/imoveis/cidade/{quote(cidade, safe='')}")
+    imoveis_encontrados = response.get_json()
+
+    assert response.status_code == 200
+    assert imoveis_encontrados == imoveis_esperados
+    assert all(
+        set(imovel.keys()) == chaves_esperadas
+        for imovel in imoveis_encontrados
+    )
+
+
+@pytest.mark.dependency(depends=["test_listar_imoveis_retorna_200"])
+def test_buscar_cidade_inexistente_retorna_cidades_disponiveis(client):
+    imoveis = client.get("/imoveis").get_json()
+    cidades_disponiveis = sorted({
+        imovel["cidade"]
+        for imovel in imoveis
+        if imovel["cidade"]
+    })
+
+    response = client.get("/imoveis/cidade/cidade-inexistente")
+
+    assert response.status_code == 404
+    assert response.get_json() == {
+        "erro": "Nenhum imóvel encontrado para a cidade informada",
+        "cidades_disponiveis": cidades_disponiveis,
+    }
