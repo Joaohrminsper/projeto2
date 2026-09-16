@@ -1,5 +1,6 @@
 # Projeto 2 - API de Imóveis
 
+## IP DO DEPLOY DA AWS: *13.58.217.10/imoveis*
 API REST desenvolvida em Flask para consultar e gerenciar imóveis armazenados
 em um banco de dados MySQL. O projeto foi desenvolvido para a disciplina de
 Programação Eficaz.
