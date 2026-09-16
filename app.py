@@ -2,6 +2,7 @@ from flask import *
 import mysql.connector
 import os
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 
 app = Flask(__name__)
@@ -11,8 +12,10 @@ load_dotenv()
 
 CONFIGURACAO_SERVIDOR = {
     "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", "3306")),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
+    "ssl_ca": os.getenv("DB_SSL_CA"),
 }
 NOME_BANCO = os.getenv("DB_NAME")
 
@@ -66,6 +69,25 @@ def inicializar_banco_de_dados():
             data_aquisicao TEXT
         )
     """)
+
+    cursor_banco.execute("SELECT COUNT(*) FROM imoveis")
+    quantidade_imoveis = cursor_banco.fetchone()[0]
+
+    if quantidade_imoveis == 0:
+        caminho_sql = Path(__file__).with_name("imoveis.sql")
+        comandos_sql = caminho_sql.read_text(encoding="utf-8")
+        comandos_sql = "\n".join(
+            linha
+            for linha in comandos_sql.splitlines()
+            if not linha.lstrip().startswith("--")
+        )
+
+        for comando in comandos_sql.split(";"):
+            if comando.strip():
+                cursor_banco.execute(comando)
+
+        conexao_banco.commit()
+
     cursor_banco.close()
     conexao_banco.close()
 
